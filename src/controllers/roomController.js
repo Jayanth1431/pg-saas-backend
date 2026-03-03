@@ -1,107 +1,85 @@
-const pool = require('../config/db');
+const pool = require("../config/db");
+const { v4: uuidv4 } = require("uuid");
 
-// CREATE ROOM + AUTO CREATE BEDS
+// Default rent mapping
+const RENT_MAPPING = {
+  1: 20000,
+  2: 10000,
+  3: 8000,
+  4: 7000,
+};
+
+// Create Room
 exports.createRoom = async (req, res) => {
   try {
-    const { building_id, floor_number, room_number, sharing_type } = req.body;
+    const { building_id, room_number, sharing_type, rent_amount } = req.body;
+
+    if (!building_id || !room_number || !sharing_type) {
+      return res.status(400).json({ message: "Required fields missing" });
+    }
+
     const organizationId = req.user.organizationId;
 
-    // Validate sharing type
-    if (![1, 2, 3, 4].includes(sharing_type)) {
+    // Auto rent if not provided
+    const finalRent =
+      rent_amount && rent_amount > 0
+        ? rent_amount
+        : RENT_MAPPING[sharing_type];
+
+    if (!finalRent) {
       return res.status(400).json({ message: "Invalid sharing type" });
     }
 
-    // Check building belongs to this organization
-    const buildingCheck = await pool.query(
-      `SELECT * FROM buildings 
-       WHERE id = $1 AND organization_id = $2`,
-      [building_id, organizationId]
+    const roomId = uuidv4();
+
+    await pool.query(
+      `INSERT INTO rooms
+      (id, organization_id, building_id, room_number, sharing_type, rent_amount)
+      VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        roomId,
+        organizationId,
+        building_id,
+        room_number,
+        sharing_type,
+        finalRent,
+      ]
     );
 
-    if (buildingCheck.rows.length === 0) {
-      return res.status(400).json({ message: "Invalid building" });
-    }
-
-    // Insert room
-    const roomResult = await pool.query(
-      `INSERT INTO rooms 
-       (building_id, floor_number, room_number, sharing_type, total_beds)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [building_id, floor_number, room_number, sharing_type, sharing_type]
-    );
-
-    const room = roomResult.rows[0];
-
-    // Auto create beds
+    // Auto create beds based on sharing type
     for (let i = 1; i <= sharing_type; i++) {
       await pool.query(
-        `INSERT INTO beds (room_id, bed_number)
-         VALUES ($1, $2)`,
-        [room.id, i]
+        `INSERT INTO beds (id, room_id, bed_number)
+         VALUES ($1, $2, $3)`,
+        [uuidv4(), roomId, `Bed-${i}`]
       );
     }
 
     res.status(201).json({
       message: "Room created successfully",
-      room
+      room_id: roomId,
+      rent_amount: finalRent,
     });
 
   } catch (error) {
     console.error("Create Room Error:", error);
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
-
-// GET ALL ROOMS BY BUILDING
-exports.getRooms = async (req, res) => {
+// Get Rooms by Building
+exports.getRoomsByBuilding = async (req, res) => {
   try {
-    const { building_id } = req.query;
+    const { building_id } = req.params;
 
-    const result = await pool.query(
-      `SELECT r.*, b.name as building_name
-       FROM rooms r
-       JOIN buildings b ON r.building_id = b.id
-       WHERE r.building_id = $1
-       ORDER BY r.floor_number, r.room_number`,
+    const rooms = await pool.query(
+      `SELECT * FROM rooms WHERE building_id = $1`,
       [building_id]
     );
 
-    res.json(result.rows);
-
+    res.json(rooms.rows);
   } catch (error) {
     console.error("Get Rooms Error:", error);
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message
-    });
-  }
-};
-
-
-// GET BEDS BY ROOM
-exports.getBedsByRoom = async (req, res) => {
-  try {
-    const { room_id } = req.query;
-
-    const result = await pool.query(
-      `SELECT * FROM beds 
-       WHERE room_id = $1
-       ORDER BY bed_number`,
-      [room_id]
-    );
-
-    res.json(result.rows);
-
-  } catch (error) {
-    console.error("Get Beds Error:", error);
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };

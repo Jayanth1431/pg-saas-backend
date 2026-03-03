@@ -1,35 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const roomController = require("../controllers/roomController");
+const authMiddleware = require("../middleware/authMiddleware");
 
-const roomController = require('../controllers/roomController');
-const { authenticate, authorizeAdmin } = require('../middleware/authMiddleware');
+// Create room (Admin only)
+router.post("/", authMiddleware, roomController.createRoom);
 
-
-// CREATE ROOM
-router.post(
-  '/',
-  authenticate,
-  authorizeAdmin,
-  roomController.createRoom
-);
-
-
-// GET ROOMS BY BUILDING
-router.get(
-  '/',
-  authenticate,
-  authorizeAdmin,
-  roomController.getRooms
-);
-
-
-// GET BEDS BY ROOM
-router.get(
-  '/beds',
-  authenticate,
-  authorizeAdmin,
-  roomController.getBedsByRoom
-);
-
+// Get rooms by building
+router.get("/:building_id", authMiddleware, roomController.getRoomsByBuilding);
 
 module.exports = router;
