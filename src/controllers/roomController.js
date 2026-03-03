@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 const { v4: uuidv4 } = require("uuid");
-
+const organizationId = req.user.organizationId;
 // Default rent mapping
 const RENT_MAPPING = {
   1: 20000,
