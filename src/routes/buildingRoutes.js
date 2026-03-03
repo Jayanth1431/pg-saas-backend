@@ -1,19 +1,21 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const buildingController = require('../controllers/buildingController');
-const { authenticate, authorizeAdmin } = require('../middleware/authMiddleware');
+const buildingController = require("../controllers/buildingController");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
 
+// Admin only
 router.post(
-  '/',
-  authenticate,
-  authorizeAdmin,
+  "/",
+  authMiddleware,
+  roleMiddleware(["admin"]),
   buildingController.createBuilding
 );
 
 router.get(
-  '/',
-  authenticate,
-  authorizeAdmin,
+  "/",
+  authMiddleware,
+  roleMiddleware(["admin"]),
   buildingController.getBuildings
 );
 

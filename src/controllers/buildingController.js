@@ -1,42 +1,49 @@
-const pool = require('../config/db');
+const pool = require("../config/db");
+const { v4: uuidv4 } = require("uuid");
 
+// Create Building (Admin Only)
 exports.createBuilding = async (req, res) => {
   try {
-    const { name, total_floors } = req.body;
-    const organizationId = req.user.organizationId;
+    const { name, address, total_floors } = req.body;
 
-    const result = await pool.query(
-      `INSERT INTO buildings (organization_id, name, total_floors)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [organizationId, name, total_floors]
+    if (!name) {
+      return res.status(400).json({ message: "Building name is required" });
+    }
+
+    const organizationId = req.user.organizationId;
+    const buildingId = uuidv4();
+
+    await pool.query(
+      `INSERT INTO buildings
+       (id, organization_id, name, address, total_floors)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [buildingId, organizationId, name, address, total_floors]
     );
 
     res.status(201).json({
       message: "Building created successfully",
-      building: result.rows[0]
+      building_id: buildingId
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("Create Building Error:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-
+// Get All Buildings (Admin Only)
 exports.getBuildings = async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
 
-    const result = await pool.query(
+    const buildings = await pool.query(
       `SELECT * FROM buildings WHERE organization_id = $1`,
       [organizationId]
     );
 
-    res.json(result.rows);
-
+    res.json(buildings.rows);
   } catch (error) {
-    console.error(error);
+    console.error("Get Buildings Error:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
