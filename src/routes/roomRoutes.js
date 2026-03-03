@@ -4,7 +4,7 @@ const roomController = require("../controllers/roomController");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
-// Only admin can create rooms
+// ✅ Only ADMIN can create room
 router.post(
   "/",
   authMiddleware,
@@ -12,11 +12,11 @@ router.post(
   roomController.createRoom
 );
 
-// Both admin and tenant can view rooms (example)
+// ✅ Only ADMIN can view rooms
 router.get(
   "/:building_id",
   authMiddleware,
-  roleMiddleware(["admin", "tenant"]),
+  roleMiddleware(["admin"]),
   roomController.getRoomsByBuilding
 );
 
